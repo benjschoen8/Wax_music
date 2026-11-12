@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <clipPath id="squircle">
+      <rect x="0" y="0" width="512" height="512" rx="115" ry="115"/>
+    </clipPath>
+  </defs>
+
+  <!-- Deep Slate Background -->
+  <rect x="0" y="0" width="512" height="512" rx="115" ry="115" fill="#14161A"/>
+
+  <g clip-path="url(#squircle)">
+    <!-- Flat Vinyl Record Disc -->
+    <circle cx="256" cy="256" r="185" fill="#181A20"/>
+
+    <!-- Concentric Grooves (Flat SVG strokes) -->
+    <circle cx="256" cy="256" r="162" fill="none" stroke="#22252C" stroke-width="3"/>
+    <circle cx="256" cy="256" r="142" fill="none" stroke="#22252C" stroke-width="3"/>
+    <circle cx="256" cy="256" r="122" fill="none" stroke="#22252C" stroke-width="3"/>
+    <circle cx="256" cy="256" r="102" fill="none" stroke="#22252C" stroke-width="3"/>
+
+    <!-- Outer Vinyl Rim Accent -->
+    <circle cx="256" cy="256" r="185" fill="none" stroke="#282B34" stroke-width="2"/>
+
+    <!-- Center Wax Label in Signature Amber Gold -->
+    <circle cx="256" cy="256" r="72" fill="#F2B632"/>
+
+    <!-- Label Inner Ring -->
+    <circle cx="256" cy="256" r="62" fill="none" stroke="#DDA225" stroke-width="2"/>
+
+    <!-- Center Spindle Hole -->
+    <circle cx="256" cy="256" r="22" fill="#14161A"/>
+    <circle cx="256" cy="256" r="22" fill="none" stroke="#DDA225" stroke-width="2"/>
+  </g>
+</svg>

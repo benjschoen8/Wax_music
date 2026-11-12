@@ -1,0 +1,166 @@
+import android.content.ContentValues
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import android.provider.MediaStore
+import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
+import java.io.File
+
+/**
+ * Two small bridges to Dart:
+ *  - "crate/share": text shared from other apps (ACTION_SEND text/plain)
+ *  - "crate/media": saving audio into Music/ through MediaStore (Android 10+),
+ *    the supported way to add songs without any storage permission.
+ */
+class MainActivity : FlutterActivity() {
+    private var channel: MethodChannel? = null
+    private var pending: String? = null
+    private var askPending: MethodChannel.Result? = null
+    private val readCode = 4242
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        val messenger = flutterEngine.dartExecutor.binaryMessenger
+
+        val ch = MethodChannel(messenger, "crate/share")
+        ch.setMethodCallHandler { call, result ->
+            if (call.method == "getInitial") {
+                result.success(pending)
+                pending = null
+            } else {
+                result.notImplemented()
+            }
+        }
+        channel = ch
+        // Cold start: Dart isn't listening yet, so keep it until it asks.
+        pending = sharedText(intent)
+
+        MethodChannel(messenger, "crate/media").setMethodCallHandler { call, result ->
+            when (call.method) {
+                "supported" -> result.success(Build.VERSION.SDK_INT >= 29)
+                "exists" -> {
+                    val name = call.argument<String>("name") ?: ""
+                    val rel = call.argument<String>("rel") ?: ""
+                    result.success(audioExists(name, rel))
+                }
+                "canRead" -> result.success(canReadAudio())
+                "askRead" -> {
+                    if (canReadAudio()) {
+                        result.success(true)
+                    } else {
+                        askPending?.success(false)
+                        askPending = result
+                        requestPermissions(arrayOf(readPermission()), readCode)
+                    }
+                }
+                "list" -> {
+                    val rel = call.argument<String>("rel") ?: ""
+                    Thread {
+                        val names = try { listAudio(rel) } catch (e: Exception) { emptyList<String>() }
+                        runOnUiThread { result.success(names) }
+                    }.start()
+                }
+                "save" -> {
+                    val path = call.argument<String>("path") ?: ""
+                    val name = call.argument<String>("name") ?: ""
+                    val rel = call.argument<String>("rel") ?: ""
+                    // Copying a few MB: keep it off the UI thread.
+                    Thread {
+                        try {
+                            val uri = saveAudio(path, name, rel)
+                            runOnUiThread { result.success(uri) }
+                        } catch (e: Exception) {
+                            runOnUiThread { result.error("SAVE_FAILED", e.message, null) }
+                        }
+                    }.start()
+                }
+                else -> result.notImplemented()
+            }
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == readCode) {
+            askPending?.success(grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED)
+            askPending = null
+        }
+    }
+
+    private fun readPermission() =
+        if (Build.VERSION.SDK_INT >= 33) android.Manifest.permission.READ_MEDIA_AUDIO
+        else android.Manifest.permission.READ_EXTERNAL_STORAGE
+
+    private fun canReadAudio() =
+        checkSelfPermission(readPermission()) == PackageManager.PERMISSION_GRANTED
+
+    /** File names of every audio file in Music/[rel] and its sub-folders. */
+    private fun listAudio(rel: String): List<String> {
+        if (Build.VERSION.SDK_INT < 29) return emptyList()
+        val out = ArrayList<String>()
+        contentResolver.query(
+            audioCollection(),
+            arrayOf(MediaStore.Audio.Media.DISPLAY_NAME),
+            "${MediaStore.Audio.Media.RELATIVE_PATH} LIKE ?",
+            arrayOf(relativePath(rel) + "/%"),
+            null
+        )?.use { c -> while (c.moveToNext()) out.add(c.getString(0)) }
+        return out
+    }
+
+    // App already open (launchMode=singleTop): push straight to Dart.
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        sharedText(intent)?.let { channel?.invokeMethod("shared", it) }
+    }
+
+    private fun sharedText(i: Intent?): String? =
+        if (i?.action == Intent.ACTION_SEND && i.type == "text/plain")
+            i.getStringExtra(Intent.EXTRA_TEXT)
+        else null
+
+    private fun audioCollection() =
+        MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+
+    /** "Music/" for the root, "Music/Crate" for rel = "Crate". */
+    private fun relativePath(rel: String) = if (rel.isEmpty()) "Music" else "Music/$rel"
+
+    private fun audioExists(name: String, rel: String): Boolean {
+        if (Build.VERSION.SDK_INT < 29) return false
+        contentResolver.query(
+            audioCollection(),
+            arrayOf(MediaStore.Audio.Media._ID),
+            "${MediaStore.Audio.Media.DISPLAY_NAME}=? AND ${MediaStore.Audio.Media.RELATIVE_PATH}=?",
+            arrayOf(name, relativePath(rel) + "/"),
+            null
+        )?.use { return it.moveToFirst() }
+        return false
+    }
+
+    private fun saveAudio(path: String, name: String, rel: String): String {
+        val values = ContentValues().apply {
+            put(MediaStore.Audio.Media.DISPLAY_NAME, name)
+            put(MediaStore.Audio.Media.MIME_TYPE, "audio/mp4")
+            put(MediaStore.Audio.Media.RELATIVE_PATH, relativePath(rel))
+            put(MediaStore.Audio.Media.IS_PENDING, 1) // hidden until fully written
+        }
+        val uri = contentResolver.insert(audioCollection(), values)
+            ?: throw IllegalStateException("MediaStore refused the new file")
+        try {
+            val out = contentResolver.openOutputStream(uri)
+                ?: throw IllegalStateException("Cannot open the new file")
+            out.use { o -> File(path).inputStream().use { it.copyTo(o) } }
+            values.clear()
+            values.put(MediaStore.Audio.Media.IS_PENDING, 0)
+            contentResolver.update(uri, values, null, null)
+        } catch (e: Exception) {
+            contentResolver.delete(uri, null, null) // never leave a half-written song
+            throw e
+        }
+        return uri.toString()
+    }
+}

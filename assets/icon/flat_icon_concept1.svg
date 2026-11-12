@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Dark slate canvas -->
+    <clipPath id="squircle">
+      <rect x="0" y="0" width="512" height="512" rx="115" ry="115"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background Squircle -->
+  <rect x="0" y="0" width="512" height="512" rx="115" ry="115" fill="#14161A"/>
+
+  <g clip-path="url(#squircle)">
+    <!-- Flat Vinyl Record -->
+    <g transform="translate(256, 215)">
+      <!-- Outer Vinyl Disc -->
+      <circle r="160" fill="#1C1E24"/>
+      <!-- Flat Vinyl Grooves -->
+      <circle r="135" fill="none" stroke="#282B33" stroke-width="4"/>
+      <circle r="110" fill="none" stroke="#282B33" stroke-width="4"/>
+      <circle r="85" fill="none" stroke="#282B33" stroke-width="4"/>
+      <!-- Center Gold Label -->
+      <circle r="60" fill="#F2B632"/>
+      <!-- Inner Spindle Hole -->
+      <circle r="18" fill="#14161A"/>
+    </g>
+
+    <!-- Flat Minimalist Crate (Foreground) -->
+    <!-- Crate Base Body -->
+    <path d="M 86 280 L 426 280 A 16 16 0 0 1 442 296 L 442 430 A 24 24 0 0 1 418 454 L 94 454 A 24 24 0 0 1 70 430 L 70 296 A 16 16 0 0 1 86 280 Z" fill="#22252C"/>
+    
+    <!-- Top Rim Accent in Amber -->
+    <rect x="70" y="280" width="372" height="12" rx="6" fill="#F2B632"/>
+
+    <!-- Crate Horizontal Slats (Cutouts showing dark background) -->
+    <rect x="94" y="312" width="324" height="28" rx="8" fill="#14161A"/>
+    <rect x="94" y="356" width="324" height="28" rx="8" fill="#14161A"/>
+    <rect x="94" y="400" width="324" height="28" rx="8" fill="#14161A"/>
+
+    <!-- Cutout Handle in Center of Slat -->
+    <rect x="206" y="320" width="100" height="12" rx="6" fill="#2E323C"/>
+  </g>
+</svg>

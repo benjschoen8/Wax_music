@@ -1,0 +1,21 @@
+<!-- 1) Merge into android/app/src/main/AndroidManifest.xml -->
+
+<!-- directly under <manifest>: -->
+<uses-permission android:name="android.permission.NFC" />
+<uses-feature android:name="android.hardware.nfc.hce" android:required="false" />
+
+<!-- inside <application>: -->
+<service
+    android:name=".WaxNdefService"
+    android:exported="true"
+    android:permission="android.permission.BIND_NFC_SERVICE">
+    <intent-filter>
+        <action android:name="android.nfc.cardemulation.action.HOST_APDU_SERVICE" />
+    </intent-filter>
+    <meta-data
+        android:name="android.nfc.cardemulation.host_apdu_service"
+        android:resource="@xml/wax_apdu_service" />
+</service>
+
+<!-- 2) android/app/src/main/res/values/strings.xml (add inside <resources>): -->
+<!-- <string name="wax_nfc_desc">Wax playlist sharing</string> -->
